@@ -5,7 +5,7 @@ __author__ = "Squizzy"
 __copyright__ = "Copyright 2024, Squizzy"
 __credits__ = ""
 __license__ = "GPL"
-__version__ = "0.1"
+__version__ = "0.2"
 __maintainer__ = "Squizzy"
 
 import pypdf
