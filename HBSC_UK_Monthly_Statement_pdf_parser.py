@@ -356,7 +356,7 @@ def save_extracted_list_to_csv(text: list[dict[str, str]], output_file) -> None:
 def save_list_to_MemoryManagerEx_csv(text: list[dict[str, str]], output_file) -> None:
     print("Saving as tab separated MoneyManagerEx CSV")
 
-    # to import importing:
+    # to import:
     # File > Import > as CSV
     # - Column "date", select "Date"
     # - Column "type", select "Don't Care"
@@ -423,7 +423,7 @@ def main():
     list_with_date_in_every_line = include_date_on_every_line(list_with_amount_in_correct_column)
 
     # To save the data into a CSV with separate column for paid in and paid out, make this True:
-    save_base_csv_file = False
+    save_base_csv_file = True
     if save_base_csv_file:
         save_extracted_list_to_csv(list_with_date_in_every_line, OUTPUT_FILE_CSV)
 
