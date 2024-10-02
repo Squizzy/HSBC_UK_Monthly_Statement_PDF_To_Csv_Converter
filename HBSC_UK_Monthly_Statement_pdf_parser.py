@@ -12,6 +12,7 @@ import pypdf
 import re
 import csv
 import os
+from datetime import datetime
 
 # from pprint import pprint
 
@@ -387,6 +388,28 @@ def save_list_to_MemoryManagerEx_csv(text: list[dict[str, str]], output_file) ->
             )
 
 
+def save_list_to_qif(text: list[dict[str, str]], output_file) -> None:
+    print("Saving data as QIF")
+
+    qif_data: list[str] = ["!Type:Bank"]
+
+    for row in text:
+        date = datetime.strptime(row["date"], "%d %b %y").strftime("%d/%m/%y")
+        qif_data.extend(
+            [
+                f"D{date}",
+                f"M{row['type']}",  # HSBC Type saved as memo
+                f"T{row['amount']}",
+                f"P{row['detail']}",
+                "^",
+            ]
+        )
+
+    with open(output_file, "w", newline="") as qif_file:
+        for line in qif_data:
+            qif_file.write(line + "\n")
+
+
 def main():
 
     # if INPUT_FILE == '':
@@ -405,9 +428,12 @@ def main():
     FILE_EXTENSION_RAW = ".txt"
     FILE_EXTENSION_CSV = ".csv"
     FILE_EXTENSION_MMX = "-mmx.csv"  # for MemoryManagerEx
+    FILE_EXTENSION_QIF = ".qif"
+    
     OUTPUT_FILE_RAW = FILE_BASE_PATH + "\\" + FILE_BASE_NAME + FILE_EXTENSION_RAW
     OUTPUT_FILE_CSV = FILE_BASE_PATH + "\\" + FILE_BASE_NAME + FILE_EXTENSION_CSV
     OUTPUT_FILE_MMX = FILE_BASE_PATH + "\\" + FILE_BASE_NAME + FILE_EXTENSION_MMX
+    OUTPUT_FILE_QIF = FILE_BASE_PATH + "\\" + FILE_BASE_NAME + FILE_EXTENSION_QIF
 
     all_lines = load_pdf_pages(INPUT_FILE)
     cleaned_list = cleanout_useless_lines_from_pdf_import(all_lines)
@@ -432,6 +458,9 @@ def main():
 
     # Saving a CSV for importing into MemoryManagerEx
     save_list_to_MemoryManagerEx_csv(list_with_combined_amounts, OUTPUT_FILE_MMX)
+    
+    # Saving QIF file
+    save_list_to_qif(list_with_combined_amounts, OUTPUT_FILE_QIF)
     return 0
 
 
