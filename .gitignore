@@ -3,4 +3,5 @@
 *.txt
 *.qif
 test.py
-
+20*/
+*.xls
