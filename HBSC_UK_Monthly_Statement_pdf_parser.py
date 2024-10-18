@@ -14,7 +14,7 @@ import csv
 import os
 from datetime import datetime
 
-# from pprint import pprint
+from pprint import pprint
 
 # Modify INPUT_FILE below to point to the PDF you want to process.
 # for example, if the file is called file.pdf in the same folder as this .py file, use :  INPUT_FILE = 'file.pdf
@@ -49,11 +49,11 @@ REGEX_space1 = r"(?:\s*)"
 # 2 or 3 upper case letters CR, SO, ... or ))) (supposedly, contactless payment)
 # REGEX_type = r'([A-Z\)]{2,3})?'
 # One of the choices of DD, CD, SO, VIS, BP, ATM, \\\ - if any needs to be added, they can be separated with OR ( '|' )
-REGEX_type = r"(?:\s(DD|\)\)\)|CR|SO|VIS|BP|ATM)\s)?"
+REGEX_type = r"(?:\s(DD|\)\)\)|CR|DR|SO|VIS|BP|ATM)\s)?"
 
 # PRESENTATIONAL SPACING:
 # 0 or more spaces
-REGEX_space2 = r"(?:\s+)"
+REGEX_space2 = r"(:?\s+)"
 
 # TRANSACTION DETAIL:
 # word boundary | one or more of a-z, A-Z, /, ., *, - | word boundary | (Optional, repeated 0 or more times: space|word boundary | one or more of a-z, A-Z, /, ., *, - | word boundary | Optional End of String)
@@ -61,7 +61,7 @@ REGEX_detail = r"(\b[a-zA-Z0-9\/\.\*\-\@\:]+\b(?:\s{1,5}\b[a-zA-Z0-9\/\.\*\-\@\:
 
 # PRESENTATIONAL SPACING:
 # (Optional: 0 or more spaces)
-REGEX_space3 = r"(?:\s+)?"
+REGEX_space3 = r"(\s+)?"
 
 # FIRST NUMBER ENCOUNTERED (can't get PAID_OUT as position on the line is not guaranteed:
 # (Optional: One or more digit followed by a comma) | One or more digits | (optional: full stop) | 0 or more digits - the whole thing happening 0 or once only
@@ -69,7 +69,9 @@ REGEX_paid_out = r"((?:\d+,)?\d+[\.]?\d*)?"
 
 # PRESENTATIONAL SPACING:
 # (Optional: 0 or more spaces)
-REGEX_space4 = r"(?:\s*)?"
+# If more than 120 char, then it is probably a paid in amount
+# REGEX_space4 = r"(?:\s*){0,120}?"
+REGEX_space4 = r"(:?\s*){0,120}"
 
 # FIRST NUMBER ENCOUNTERED (can't get PAID_OUT as position on the line is not guaranteed:
 # (Optional: One or more digit followed by a comma) | One or more digits | (optional: full stop) | 0 or more digits - the whole thing happening 0 or once only
@@ -77,7 +79,7 @@ REGEX_paid_in = r"((?:\d+,)?\d+[\.]?\d*)?"
 
 # PRESENTATIONAL SPACING:
 # (Optional: 0 or more spaces)
-REGEX_space5 = r"(?:\s*)?"
+REGEX_space5 = r"(:?\s*)?"
 
 # FIRST NUMBER ENCOUNTERED (can't get PAID_OUT as position on the line is not guaranteed:
 # (Optional: One or more digit followed by a comma) | One or more digits | (optional: full stop) | 0 or more digits - the whole thing happening 0 or once only
@@ -169,13 +171,19 @@ def extract_line_info_into_dict(all_lines) -> list[dict[str, str]]:
             extracted_info = re.findall(LINE_DETAILS_EXTRACTION_REGEX, line)[0]
             ei = {
                 "date": extracted_info[0],
+                # "space1": extracted_info[1],
                 "type": extracted_info[1],
+                # "space2": extracted_info[3],
                 "detail": extracted_info[2],
-                "paid out": extracted_info[3],
-                "paid in": extracted_info[4],
-                "balance": extracted_info[5],
+                "space3": extracted_info[3],
+                "paid out": extracted_info[4],
+                # "space4": extracted_info[7],
+                "paid in": extracted_info[5],
+                # "space5": extracted_info[9],
+                "balance": extracted_info[6],
             }
             extracted_lines.append(ei)
+
     return extracted_lines
 
 
@@ -203,27 +211,37 @@ def combine_split_lines(extracted_lines: list[dict[str, str]]) -> list[dict[str,
         # confirm that the next line has no transaction type but an amount.
         # In this case, combine
         elif extracted_lines[i]["type"] and not extracted_lines[i]["paid out"]:
-            if (
-                not extracted_lines[i + 1]["type"]
-                and extracted_lines[i + 1]["paid out"]
-            ):
+            temp_detail = extracted_lines[i]["detail"]
+            j = 1
+            # Check if the next line has no transaction type and no amount
+            # in this case, combine the details
+            # otherwise, carry on
+            while not extracted_lines[i + j]["type"] and not extracted_lines[i + j]["paid out"]:
+                temp_detail = temp_detail + " " + extracted_lines[i + j]["detail"]
+                j = j + 1
+            
+            # if the current studied line i+j had either a type or a paid out, it reached here.
+            # Normally, it should be a paid out, meaning it is the end of the combining
+            # So combine this detail
+            if not extracted_lines[i + j]["type"] and extracted_lines[i + j]["paid out"]:
+                temp_detail = temp_detail + " " + extracted_lines[i + j]["detail"]
+            # if (
+            #     not extracted_lines[i + 1]["type"]
+            #     and extracted_lines[i + 1]["paid out"]
+            # ):
                 combined_line = {
                     "date": extracted_lines[i]["date"],  # date from current line
+                    # "space1": extracted_lines[i]["space1"],
                     "type": extracted_lines[i]["type"],  # type from current line
-                    "detail": extracted_lines[i]["detail"]
-                    + " "
-                    + extracted_lines[i + 1][
-                        "detail"
-                    ],  # detail from current and next lines
-                    "paid out": extracted_lines[i + 1][
-                        "paid out"
-                    ],  # first amount from the next line
-                    "paid in": extracted_lines[i + 1][
-                        "paid in"
-                    ],  # second amount from the next line
-                    "balance": extracted_lines[i + 1][
-                        "balance"
-                    ],  # third amount from the next line - should be empty
+                    # "detail": extracted_lines[i]["detail"] + " " + extracted_lines[i + 1]["detail"],  # detail from current and next lines
+                    # "space2": extracted_lines[i]["space2"],
+                    "detail": temp_detail,
+                    "space3": extracted_lines[i+j]["space3"],
+                    "paid out": extracted_lines[i + j]["paid out"],  # first amount from the next line
+                    # "space4": extracted_lines[i + j]["space4"],
+                    "paid in": extracted_lines[i + j]["paid in"],  # second amount from the next line
+                    # "space5": extracted_lines[i + j]["space5"],
+                    "balance": extracted_lines[i + j]["balance"],  # third amount from the next line - should be empty
                 }
                 combined_split_lines.append(combined_line)
                 # n = n + 1
@@ -239,11 +257,11 @@ def combine_split_lines(extracted_lines: list[dict[str, str]]) -> list[dict[str,
 
 
 def fix_amount_column_position(combined_split_lines) -> list[dict[str, str]]:
-    log(
-        """Correcting the positioning of the amount, 
-          depending on whether it is a Credit (paid in) or a Debit (paid out), 
-          and the balance"""
-    )
+   
+    """Correcting the positioning of the amount, 
+        depending on whether it is a Credit (paid in) or a Debit (paid out), 
+        and the balance"""
+    log("Correcting payment column (credit or debit)")
     
     # 3) Now the amounts need to be moved to the correct column, ie position in the field
     # On a normal complete line, the information should contain
@@ -267,12 +285,30 @@ def fix_amount_column_position(combined_split_lines) -> list[dict[str, str]]:
     for ei in combined_split_lines:
         temp_final_line = {
             "date": ei["date"],  # Date - no change
+            # "space1": ei["space1"],  # Space 1 - no change
             "type": ei["type"],  # Type - no change
+            # "space2": ei["space2"],  # Space 2 - no change
             "detail": ei["detail"],  # Detail - no change
-            "paid out": (
-                ei["paid out"] if ei["type"] != "CR" else ""
-            ),  # Paid Out (ie not credited)
-            "paid in": ei["paid out"] if ei["type"] == "CR" else "",  # Paid In
+            "space3": ei["space3"],  # Space 3 - no change
+            "paid out": 
+                # VIS can be either paid in or paid out
+                # if 103 spaces before the VIS value, then it is a paid out
+                ei["paid out"] if ei["type"] == "VIS" and ei["paid out"] and len(ei["space3"]) < 103
+                    # but if more than 103 spaces, then it is a paid in
+                    else "" if ei["type"] == "VIS" and ei["paid out"] and len(ei["space3"]) >= 103
+                        # all those not CR are paid out
+                        else ei["paid out"] if ei["type"] != "CR" 
+                            # CR will always be paid in, so nothing in this case
+                            else "",  # Paid Out (ie not credited)
+            # "space4": ei["space4"],  # Space 4 - no change
+            "paid in": 
+                # VIS can be paid in if more than 103 spaces before the VIS value
+                ei["paid out"] if ei["type"] == "VIS" and ei["paid out"] and len(ei["space3"]) >= 103
+                    # CR are paid in
+                    else ei["paid out"] if ei["type"] == "CR" 
+                        # Otherwise, it was a paid out, so nothing
+                        else "",  # Paid In
+            # "space5": ei["space5"],  # Space 5 - no change
             "balance": ei["balance"],  # Balance
         }
         lines_with_amt_adjusted_columns.append(temp_final_line)
@@ -332,10 +368,15 @@ def save_extracted_list_to_csv(text: list[dict[str, str]], output_file) -> None:
         writer.writerow(
             [
                 "Date",
+                # "space1",
                 "Transaction Type",
+                # "space2",
                 "Transaction Detail",
+                "space3",
                 "Paid Out",
+                # "space4",
                 "Paid In",
+                # "space5",
                 "Balance",
             ]
         )
@@ -345,10 +386,15 @@ def save_extracted_list_to_csv(text: list[dict[str, str]], output_file) -> None:
             writer.writerow(
                 [
                     ll["date"],
+                    # " ",
                     ll["type"],
+                    # ll["space2"],
                     ll["detail"],
+                    len(ll["space3"]),
                     ll["paid out"],
+                    # ll["space4"],
                     ll["paid in"],
+                    # ll["space5"],
                     ll["balance"],
                 ]
             )
@@ -457,10 +503,15 @@ def main():
     list_with_combined_amounts = combine_paid_in_and_paid_out(list_with_date_in_every_line)
 
     # Saving a CSV for importing into MemoryManagerEx
-    save_list_to_MemoryManagerEx_csv(list_with_combined_amounts, OUTPUT_FILE_MMX)
+    save_memory_manager_ex_csv = True
+    if save_memory_manager_ex_csv:
+        save_list_to_MemoryManagerEx_csv(list_with_combined_amounts, OUTPUT_FILE_MMX)
     
     # Saving QIF file
-    save_list_to_qif(list_with_combined_amounts, OUTPUT_FILE_QIF)
+    save_qif = True
+    if save_qif:
+        save_list_to_qif(list_with_combined_amounts, OUTPUT_FILE_QIF)
+        
     return 0
 
 
