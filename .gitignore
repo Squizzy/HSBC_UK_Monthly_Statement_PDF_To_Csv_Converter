@@ -5,3 +5,6 @@
 test.py
 20*/
 *.xls*
+misc/
+HSBC_PDF/
+Converted_Files/
