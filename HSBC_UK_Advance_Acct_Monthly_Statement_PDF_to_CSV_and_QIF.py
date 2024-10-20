@@ -40,7 +40,6 @@ OUTPUT_FOLDER_QIF = OUTPUT_FOLDER_GENERIC + "\\QIF"
 OUTPUT_EXTENSION_QIF = ".qif"
 OUTPUT_FILENAME_QIF_COMBINED = "HSBC_transactions_combined.qif"
 
-SHOW_LOG = True
 
 #####
 # Switches
@@ -55,11 +54,12 @@ cancel = False                              # cancel the execution of the progra
 # Application specific
 csv_writer_combined_header_present = False  # In a combined CSV file, do not re-add header every time a new file is added
 mmx_writer_combined_header_present = False  # In a combined CSV file, do not re-add header every time a new file is added
+file_generation_log_entry_already_displayed = False # Use to prevent display of overwhelming amount of useless log entries
 
 # Debug specific
-output_raw = False                                  # Generate a raw text file of all the transactions                      
-output_spaces_in_csv = False                        # In Generic CSV, include columns with the spacing between details      
-file_generation_log_entry_already_displayed = False # if True, the log entry are output to terminal (verbose)
+show_log = False                            # Display log messages to terminal if True
+output_raw = False                          # Generate a raw text file of all the transactions                      
+output_spaces_in_csv = False                # In Generic CSV, include columns with the spacing between details      
 
 
 #####
@@ -151,7 +151,7 @@ LINE_DETAILS_EXTRACTION_REGEX = (
 
 # def log(func_name: str, mesage: str) -> None:
 def log(message: str) -> None:
-    if SHOW_LOG:
+    if show_log:
         logtime = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         print(f"[{logtime}] {message}")
 
@@ -927,6 +927,8 @@ def main() -> int:
 
     # Check if the user cancelled
     if user_cancelled(SelectedPath):
+        
+        print("User cancelled")
         return 0
     
     # Present confirmation of the selection:
@@ -939,7 +941,8 @@ def main() -> int:
     # if a specific file had been selected
     if SelectedFile:
         generate_requested_files_from_PDF(SelectedPath, SelectedFile)
-
+        
+        print("Done!")
         return 0
 
     # if a folder had been selected
@@ -968,6 +971,7 @@ def main() -> int:
         for pdf_file in pdf_files:
             generate_requested_files_from_PDF(SelectedPath, pdf_file)
         
+        print("Done!")
         return 0
 
 
